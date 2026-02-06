@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Canteen System - Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+  margin:0;
+  font-family:Arial, sans-serif;
+  background:linear-gradient(135deg,#667eea,#764ba2);
+  height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.box{
+  background:#fff;
+  width:360px;
+  padding:25px;
+  border-radius:15px;
+  box-shadow:0 15px 40px rgba(0,0,0,0.3);
+}
+
+h2{text-align:center;margin-bottom:15px}
+
+input{
+  width:100%;
+  padding:10px;
+  margin:8px 0;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+
+button{
+  width:100%;
+  padding:10px;
+  margin-top:10px;
+  border:none;
+  border-radius:8px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.registerBtn{background:#28a745;color:#fff}
+.loginBtn{background:#007bff;color:#fff}
+
+.switch{
+  text-align:center;
+  margin-top:12px;
+  cursor:pointer;
+  color:#007bff;
+  font-size:14px;
+}
+
+@media(max-width:480px){
+  .box{width:90%}
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+  <h2 id="title">Register</h2>
+
+  <input type="email" id="email" placeholder="Email" required>
+  <input type="password" id="password" placeholder="Password (min 6 char)" required>
+
+  <button id="registerBtn" class="registerBtn" onclick="register()">Register</button>
+  <button id="loginBtn" class="loginBtn" onclick="login()" style="display:none;">Login</button>
+
+  <div class="switch" onclick="toggleForm()" id="switchText">
+    Already registered? Login
+  </div>
+</div>
+
+<!-- FIREBASE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword }
+from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA0MilQXBxRH3bK2XwBl8of1PIFpDx8K14",
+  authDomain: "managment-5ecda.firebaseapp.com",
+  projectId: "managment-5ecda"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+let isRegister = true;
+
+window.toggleForm = function(){
+  isRegister = !isRegister;
+  document.getElementById("title").innerText = isRegister ? "Register" : "Login";
+  document.getElementById("registerBtn").style.display = isRegister ? "block" : "none";
+  document.getElementById("loginBtn").style.display = isRegister ? "none" : "block";
+  document.getElementById("switchText").innerText =
+    isRegister ? "Already registered? Login" : "New user? Register";
+}
+
+// REGISTER
+window.register = function(){
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  if(password.length < 6){
+    alert("Password minimum 6 characters");
+    return;
+  }
+
+  createUserWithEmailAndPassword(auth, email, password)
+    .then(()=>{
+      alert("Registration successful. Now login.");
+      toggleForm();
+    })
+    .catch(err=>alert(err.message));
+}
+
+// LOGIN
+window.login = function(){
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  signInWithEmailAndPassword(auth, email, password)
+    .then(()=>{
+      window.location.href = "canteen.html";
+    })
+    .catch(err=>alert(err.message));
+}
+</script>
+
+</body>
+</html>
