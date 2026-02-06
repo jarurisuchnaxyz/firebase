@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Canteen Pro System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc } 
+from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyA0MilQXBxRH3bK2XwBl8of1PIFpDx8K14",
+  authDomain: "managment-5ecda.firebaseapp.com",
+  projectId: "managment-5ecda"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let UID = "";
+let currentCustomerID = "";
+let currentCustomerName = "";
+
+/* Auth check */
+onAuthStateChanged(auth, user=>{
+  if(!user) location.href="login.html";
+  else {
+    UID = user.uid;
+    document.getElementById("mainPage").style.display = "block";
+    loadCustomers();
+  }
+});
+
+/* Logout */
+window.logout = ()=> signOut(auth).then(()=>location.href="login.html");
+
+/* ================= CUSTOMERS ================= */
+window.addCustomer = async ()=>{
+  let name = custName.value.trim();
+  let number = custNumber.value.trim();
+  if(!name || !number){ alert("Fill all details"); return; }
+  await addDoc(collection(db,"users",UID,"customers"),{ name, number, created:Date.now() });
+  custName.value=""; custNumber.value="";
+  loadCustomers();
+};
+
+async function loadCustomers(){
+  customerList.innerHTML="";
+  const snap = await getDocs(query(collection(db,"users",UID,"customers"), orderBy("created","asc")));
+  let i=1;
+  snap.forEach(d=>{
+    let c=d.data();
+    customerList.innerHTML+=`
+    <div class="customerCard" id="customer-${d.id}">
+      <span>${i++}. ${c.name} (${c.number})</span>
+      <div>
+        <button onclick="openCustomer('${d.id}','${c.name}')">Open</button>
+        <button onclick="editCustomer('${d.id}','${c.name}','${c.number}')">Edit</button>
+        <button onclick="deleteCustomer('${d.id}')">Delete</button>
+      </div>
+    </div>`;
+  });
+}
+
+// Edit customer
+window.editCustomer = (id,name,number)=>{
+  const newName = prompt("Enter new name:", name);
+  const newNumber = prompt("Enter new number:", number);
+  if(!newName || !newNumber) return;
+  updateDoc(doc(db,"users",UID,"customers",id),{name:newName, number:newNumber}).then(()=>loadCustomers());
+};
+
+// Delete customer
+window.deleteCustomer = async (id)=>{
+  if(!confirm("Are you sure to delete this customer?")) return;
+  await deleteDoc(doc(db,"users",UID,"customers",id));
+  const ordersSnap = await getDocs(collection(db,"users",UID,"orders",id,"items"));
+  ordersSnap.forEach(async d=> await deleteDoc(doc(db,"users",UID,"orders",id,"items",d.id)));
+  loadCustomers();
+};
+
+// Customer search
+window.searchCustomer = ()=>{
+  const searchVal = searchInput.value.trim().toLowerCase();
+  const cards = document.querySelectorAll(".customerCard");
+  cards.forEach(card=>{
+    const text = card.querySelector("span").innerText.toLowerCase();
+    card.style.display = text.includes(searchVal) ? "flex" : "none";
+  });
+};
+
+/* ================= ORDERS ================= */
+window.openCustomer = async (id,name)=>{
+  currentCustomerID = id;
+  currentCustomerName = name;
+  customerSection.classList.remove("hidden");
+  customerTitle.innerText = name;
+  setToday();
+  showOrders();
+};
+
+function setToday(){
+  let t = new Date();
+  orderDate.value = t.getDate().toString().padStart(2,'0')+"-"+(t.getMonth()+1).toString().padStart(2,'0')+"-"+t.getFullYear();
+}
+
+window.addOrder = async ()=>{
+  let type=itemType.value;
+  let qtyVal=parseInt(qty.value);
+  let status=statusType.value;
+  if(!type || !qtyVal){ alert("Fill all fields"); return; }
+
+  let item="",rate=0;
+  if(type=="tea"){item="Tea"; rate=6;}
+  else if(type=="snack"){item="Snack"; rate=15;}
+  else if(type=="lunch"){item="Lunch"; rate=45;}
+  else if(type=="dinner"){item="Dinner"; rate=45;}
+  else if(type=="other"){
+    if(!otherName.value || !otherRate.value){ alert("Fill other item details"); return; }
+    item = otherName.value; rate=parseInt(otherRate.value);
+  }
+
+  await addDoc(collection(db,"users",UID,"orders",currentCustomerID,"items"),{
+    date:orderDate.value, item, qty:qtyVal, rate, total: qtyVal*rate, status
+  });
+
+  qty.value=""; otherName.value=""; otherRate.value="";
+  showOrders();
+};
+
+async function showOrders(){
+  orderList.innerHTML="";
+  let totalDue=0;
+  const snap = await getDocs(collection(db,"users",UID,"orders",currentCustomerID,"items"));
+  snap.forEach(d=>{
+    let o=d.data();
+    if(o.status=="due") totalDue += o.total;
+    orderList.innerHTML+=`
+    <tr>
+      <td>${o.date}</td>
+      <td>${o.item}</td>
+      <td>${o.qty}</td>
+      <td>${o.rate}</td>
+      <td>${o.total}</td>
+      <td>${o.status}</td>
+      <td><button onclick="deleteOrder('${d.id}')">Delete</button></td>
+    </tr>`;
+  });
+  total.innerText = totalDue;
+}
+
+window.deleteOrder = async (id)=>{
+  await deleteDoc(doc(db,"users",UID,"orders",currentCustomerID,"items",id));
+  showOrders();
+};
+
+/* Other item toggle */
+itemType.addEventListener('change', ()=>{
+  if(itemType.value==='other'){
+    otherName.style.display='inline';
+    otherRate.style.display='inline';
+  } else {
+    otherName.style.display='none';
+    otherRate.style.display='none';
+  }
+});
+otherName.style.display='none';
+otherRate.style.display='none';
+
+/* Print bill */
+window.printBill = async ()=>{
+  let html = `<h2>Bill for ${currentCustomerName}</h2>
+              <table border="1" cellspacing="0" cellpadding="5">
+              <tr><th>Date</th><th>Item</th><th>Qty</th><th>Rate</th><th>Total</th><th>Status</th></tr>`;
+  const snap = await getDocs(collection(db,"users",UID,"orders",currentCustomerID,"items"));
+  let totalDue=0;
+  snap.forEach(d=>{
+    const o = d.data();
+    html += `<tr>
+      <td>${o.date}</td>
+      <td>${o.item}</td>
+      <td>${o.qty}</td>
+      <td>${o.rate}</td>
+      <td>${o.total}</td>
+      <td>${o.status}</td>
+    </tr>`;
+    if(o.status=="due") totalDue += o.total;
+  });
+  html += `</table><h3>Total Due: ₹${totalDue}</h3>`;
+  const win = window.open(""); win.document.write(html); win.print(); win.close();
+};
+
+/* ================= CSV DOWNLOAD ================= */
+async function downloadMonthlyCSV() {
+  if(!currentCustomerID){ alert("Open a customer first"); return; }
+  const todayMonth = new Date().getMonth() + 1;
+  const todayYear = new Date().getFullYear();
+  const itemsSnap = await getDocs(collection(db,"users",UID,"orders",currentCustomerID,"items"));
+  let csv = "Date,Item,Qty,Rate,Total,Status\n";
+  let count = 0;
+  itemsSnap.forEach(doc=>{
+    const o = doc.data();
+    const [d,m,y] = o.date.split("-").map(Number);
+    if(m === todayMonth && y === todayYear){
+      csv += `${o.date},${o.item},${o.qty},${o.rate},${o.total},${o.status}\n`;
+      count++;
+    }
+  });
+  if(count === 0){ alert("No orders for this month"); return; }
+  const blob = new Blob([csv], {type:"text/csv"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${currentCustomerName}_Monthly_Report.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+async function downloadAllCustomersCSV() {
+  const todayMonth = new Date().getMonth() + 1;
+  const todayYear = new Date().getFullYear();
+  const custSnap = await getDocs(collection(db,"users",UID,"customers"));
+  let csv = "Customer,Number,Date,Item,Qty,Rate,Total,Status\n";
+  let totalCount = 0;
+  for(const custDoc of custSnap.docs){
+    const c = custDoc.data();
+    const ordersSnap = await getDocs(collection(db,"users",UID,"orders",custDoc.id,"items"));
+    ordersSnap.forEach(d=>{
+      const o = d.data();
+      const [d1,m,y] = o.date.split("-").map(Number);
+      if(m === todayMonth && y === todayYear){
+        csv += `${c.name},${c.number},${o.date},${o.item},${o.qty},${o.rate},${o.total},${o.status}\n`;
+        totalCount++;
+      }
+    });
+  }
+  if(totalCount === 0){ alert("No orders for this month"); return; }
+  const blob = new Blob([csv], {type:"text/csv"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `All_Customers_Monthly.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+</script>
+
+<style>
+body { margin:0; font-family:'Segoe UI', sans-serif; background:linear-gradient(135deg,#f5f7fa,#c3cfe2); min-height:100vh; display:flex; justify-content:center; padding:20px;}
+.container { background:#fff; padding:20px; border-radius:15px; max-width:950px; width:100%; box-shadow:0 8px 25px rgba(0,0,0,0.15);}
+.headingBox {
+    background:#FFCC33; padding:20px; border:3px solid #FF9900; border-radius:10px; display:flex; align-items:center; justify-content:center; position:relative; flex-wrap:wrap;
+}
+.headingBox img { width:120px; height:120px; border-radius:50%; margin-right:20px;}
+.headingBox h2 { margin:0; font-size:36px; font-weight:bold; color:#333; text-align:center;}
+body>button { position:fixed; top:10px; right:10px; padding:8px 12px; font-size:14px; border-radius:6px; z-index:999;}
+h3{ text-align:center; color:#333; margin-bottom:20px;}
+input, select, button { padding:10px; margin:5px; border-radius:8px; border:1px solid #ccc; font-size:15px; }
+button { background:#007BFF; color:#fff; cursor:pointer; }
+button:hover{background:#0056b3;}
+.customerCard{background:#f0f4f8; padding:12px 15px; border-radius:10px; margin:10px 0; display:flex; justify-content:space-between; align-items:center; }
+.customerCard div button{margin-left:5px;}
+.hidden{display:none;}
+table{width:100%; border-collapse:collapse; margin-top:15px;}
+th,td{border:1px solid #ddd; padding:10px; text-align:center;}
+th{background:#007BFF; color:white;}
+#total{font-weight:bold;color:#007BFF;font-size:18px;}
+#customerSection{margin-top:30px; padding:15px; border:2px solid #007BFF; border-radius:10px; background:#f0f8ff;}
+#customerTitle{font-size:22px; font-weight:bold; text-align:center; margin-bottom:15px;}
+#otherName,#otherRate{display:none;}
+@media(max-width:768px){
+    .headingBox { flex-direction:column; padding:15px; }
+    .headingBox img { width:80px; height:80px; margin:0 0 10px 0; }
+    .headingBox h2 { font-size:24px; }
+    body>button { padding:6px 10px; font-size:12px; }
+    input,select,button{width:20%; margin:5px 0;}
+    .customerCard{ flex-direction:column;align-items:flex-start; }
+    table,thead,tbody,th,td,tr { display:block; }
+    table thead tr { display:none; }
+    table tbody tr { margin-bottom:15px; border:1px solid #ccc; padding:10px; border-radius:10px; }
+    table td { text-align:right; padding-left:50%; position:relative; }
+    table td::before { position:absolute; left:10px; width:45%; white-space:nowrap; font-weight:bold; }
+    table td:nth-of-type(1)::before { content:"Date"; }
+    table td:nth-of-type(2)::before { content:"Item"; }
+    table td:nth-of-type(3)::before { content:"Qty"; }
+    table td:nth-of-type(4)::before { content:"Rate"; }
+    table td:nth-of-type(5)::before { content:"Total"; }
+    table td:nth-of-type(6)::before { content:"Status"; }
+    table td:nth-of-type(7)::before { content:"Action"; }
+}
+</style>
+
+<body>
+<button onclick="logout()">Logout</button>
+<div class="container" id="mainPage" style="display:none">
+
+<div class="headingBox">
+  <img src="https://cdn-icons-png.flaticon.com/512/1046/1046784.png" alt="Food">
+  <h2> Management System</h2>
+</div>
+
+<div style="margin-bottom:15px;">
+<input id="searchInput" placeholder="Search Customer by name or serial" onkeyup="searchCustomer()">
+</div>
+
+<input id="custName" placeholder="Customer Name">
+<input id="custNumber" placeholder="Mobile Number">
+<button onclick="addCustomer()">Add Customer</button>
+<button onclick="downloadAllCustomersCSV()">Download All Customers CSV</button>
+
+<div id="customerList"></div>
+
+<div id="customerSection" class="hidden">
+<h3 id="customerTitle"></h3>
+<input id="orderDate" readonly>
+
+<select id="itemType">
+<option value="tea">Tea</option>
+<option value="snack">Snack</option>
+<option value="lunch">Lunch</option>
+<option value="dinner">Dinner</option>
+<option value="other">Other</option>
+</select>
+
+<input id="otherName" placeholder="Item">
+<input id="otherRate" placeholder="Rate">
+<input id="qty" placeholder="Qty">
+
+<select id="statusType">
+<option value="due">Due</option>
+<option value="paid">Paid</option>
+<option value="parchi">Parchi</option>
+</select>
+
+<button onclick="addOrder()">Add Order</button>
+<button onclick="printBill()">Print Bill</button>
+<button onclick="downloadMonthlyCSV()">Download Monthly CSV</button>
+
+<table>
+<thead>
+<tr><th>Date</th><th>Item</th><th>Qty</th><th>Rate</th><th>Total</th><th>Status</th><th>Action</th></tr>
+</thead>
+<tbody id="orderList"></tbody>
+</table>
+
+<div>Total Due ₹ <span id="total">0</span></div>
+</div>
+</div>
+</body>
+</html>
