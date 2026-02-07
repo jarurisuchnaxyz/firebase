@@ -2,63 +2,55 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Canteen Pro System</title>
+<title>Canteen Management System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, updateDoc } 
-from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getAuth,onAuthStateChanged,signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { getFirestore,collection,addDoc,getDocs,deleteDoc,doc,updateDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// Firebase Config
-const firebaseConfig = {
-  apiKey: "AIzaSyA0MilQXBxRH3bK2XwBl8of1PIFpDx8K14",
-  authDomain: "managment-5ecda.firebaseapp.com",
-  projectId: "managment-5ecda"
+const firebaseConfig={
+  apiKey:"AIzaSyA0MilQXBxRH3bK2XwBl8of1PIFpDx8K14",
+  authDomain:"managment-5ecda.firebaseapp.com",
+  projectId:"managment-5ecda"
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
 
-let UID = "";
-let currentCustomerID = "";
-let currentCustomerName = "";
+let UID="",currentCustomerID="",currentCustomerName="";
 
-/* Auth check */
-onAuthStateChanged(auth, user=>{
-  if(!user) location.href="login.html";
-  else {
-    UID = user.uid;
-    document.getElementById("mainPage").style.display = "block";
-    loadCustomers();
-  }
+onAuthStateChanged(auth,u=>{
+  if(!u) location.href="login.html";
+  UID=u.uid;
+  mainPage.style.display="block";
+  loadCustomers();
 });
 
-/* Logout */
-window.logout = ()=> signOut(auth).then(()=>location.href="login.html");
+window.logout=()=>signOut(auth).then(()=>location.href="login.html");
 
 /* ================= CUSTOMERS ================= */
-window.addCustomer = async ()=>{
-  let name = custName.value.trim();
-  let number = custNumber.value.trim();
-  if(!name || !number){ alert("Fill all details"); return; }
-  await addDoc(collection(db,"users",UID,"customers"),{ name, number, created:Date.now() });
-  custName.value=""; custNumber.value="";
+window.addCustomer=async()=>{
+  if(!custName.value||!custNumber.value) return alert("Fill details");
+  await addDoc(collection(db,"users",UID,"customers"),{
+    name:custName.value,number:custNumber.value,created:Date.now()
+  });
+  custName.value="";custNumber.value="";
   loadCustomers();
 };
 
 async function loadCustomers(){
   customerList.innerHTML="";
-  const snap = await getDocs(query(collection(db,"users",UID,"customers"), orderBy("created","asc")));
+  const snap=await getDocs(collection(db,"users",UID,"customers"));
   let i=1;
   snap.forEach(d=>{
-    let c=d.data();
+    const c=d.data();
     customerList.innerHTML+=`
-    <div class="customerCard" id="customer-${d.id}">
+    <div class="customerCard">
       <span>${i++}. ${c.name} (${c.number})</span>
-      <div>
+      <div class="rightBtns">
         <button onclick="openCustomer('${d.id}','${c.name}')">Open</button>
         <button onclick="editCustomer('${d.id}','${c.name}','${c.number}')">Edit</button>
         <button onclick="deleteCustomer('${d.id}')">Delete</button>
@@ -67,79 +59,89 @@ async function loadCustomers(){
   });
 }
 
-// Edit customer
-window.editCustomer = (id,name,number)=>{
-  const newName = prompt("Enter new name:", name);
-  const newNumber = prompt("Enter new number:", number);
-  if(!newName || !newNumber) return;
-  updateDoc(doc(db,"users",UID,"customers",id),{name:newName, number:newNumber}).then(()=>loadCustomers());
-};
-
-// Delete customer
-window.deleteCustomer = async (id)=>{
-  if(!confirm("Are you sure to delete this customer?")) return;
-  await deleteDoc(doc(db,"users",UID,"customers",id));
-  const ordersSnap = await getDocs(collection(db,"users",UID,"orders",id,"items"));
-  ordersSnap.forEach(async d=> await deleteDoc(doc(db,"users",UID,"orders",id,"items",d.id)));
-  loadCustomers();
-};
-
-// Customer search
-window.searchCustomer = ()=>{
-  const searchVal = searchInput.value.trim().toLowerCase();
-  const cards = document.querySelectorAll(".customerCard");
-  cards.forEach(card=>{
-    const text = card.querySelector("span").innerText.toLowerCase();
-    card.style.display = text.includes(searchVal) ? "flex" : "none";
+window.searchCustomer=()=>{
+  const v=searchInput.value.toLowerCase();
+  document.querySelectorAll(".customerCard").forEach(c=>{
+    c.style.display=c.innerText.toLowerCase().includes(v)?"flex":"none";
   });
 };
 
+window.editCustomer=(id,n,m)=>{
+  const nn=prompt("Name",n);
+  const nm=prompt("Mobile",m);
+  if(!nn||!nm) return;
+  updateDoc(doc(db,"users",UID,"customers",id),{name:nn,number:nm}).then(loadCustomers);
+};
+
+window.deleteCustomer=async(id)=>{
+  if(!confirm("Delete customer?")) return;
+  await deleteDoc(doc(db,"users",UID,"customers",id));
+  loadCustomers();
+};
+
 /* ================= ORDERS ================= */
-window.openCustomer = async (id,name)=>{
-  currentCustomerID = id;
-  currentCustomerName = name;
+window.openCustomer=(id,name)=>{
+  currentCustomerID=id;
+  currentCustomerName=name;
+  customerList.style.display="none";
   customerSection.classList.remove("hidden");
-  customerTitle.innerText = name;
+  customerTitle.innerText=name;
   setToday();
   showOrders();
 };
 
+window.backToCustomers=()=>{
+  customerSection.classList.add("hidden");
+  customerList.style.display="block";
+};
+
 function setToday(){
-  let t = new Date();
-  orderDate.value = t.getDate().toString().padStart(2,'0')+"-"+(t.getMonth()+1).toString().padStart(2,'0')+"-"+t.getFullYear();
+  const d=new Date();
+  orderDate.value=
+    String(d.getDate()).padStart(2,"0")+"-"+
+    String(d.getMonth()+1).padStart(2,"0")+"-"+d.getFullYear();
 }
 
-window.addOrder = async ()=>{
-  let type=itemType.value;
-  let qtyVal=parseInt(qty.value);
-  let status=statusType.value;
-  if(!type || !qtyVal){ alert("Fill all fields"); return; }
+window.addOrder=async()=>{
+  let rate=0,item=itemType.value;
 
-  let item="",rate=0;
-  if(type=="tea"){item="Tea"; rate=6;}
-  else if(type=="snack"){item="Snack"; rate=15;}
-  else if(type=="lunch"){item="Lunch"; rate=45;}
-  else if(type=="dinner"){item="Dinner"; rate=45;}
-  else if(type=="other"){
-    if(!otherName.value || !otherRate.value){ alert("Fill other item details"); return; }
-    item = otherName.value; rate=parseInt(otherRate.value);
+  if(item==="tea") rate=5;
+  else if(item==="snack") rate=15;
+  else if(item==="lunch") rate=45;
+  else if(item==="dinner") rate=45;
+  else{
+    if(!otherName.value || !otherRate.value){
+      alert("Other item name aur rate dalo");
+      return;
+    }
+    item=otherName.value;
+    rate=parseInt(otherRate.value);
   }
 
   await addDoc(collection(db,"users",UID,"orders",currentCustomerID,"items"),{
-    date:orderDate.value, item, qty:qtyVal, rate, total: qtyVal*rate, status
+    date:orderDate.value,
+    item,
+    qty:+qty.value,
+    rate,
+    total:qty.value*rate,
+    status:statusType.value
   });
 
-  qty.value=""; otherName.value=""; otherRate.value="";
+  qty.value="";otherName.value="";otherRate.value="";
   showOrders();
 };
 
 async function showOrders(){
   orderList.innerHTML="";
-  let totalDue=0;
-  const snap = await getDocs(collection(db,"users",UID,"orders",currentCustomerID,"items"));
+  let due=0,paid=0,parchi=0;
+
+  const snap=await getDocs(collection(db,"users",UID,"orders",currentCustomerID,"items"));
   snap.forEach(d=>{
-    let o=d.data();
-    if(o.status=="due") totalDue += o.total;
+    const o=d.data();
+    if(o.status==="due") due+=o.total;
+    if(o.status==="paid") paid+=o.total;
+    if(o.status==="parchi") parchi+=o.total;
+
     orderList.innerHTML+=`
     <tr>
       <td>${o.date}</td>
@@ -148,174 +150,222 @@ async function showOrders(){
       <td>${o.rate}</td>
       <td>${o.total}</td>
       <td>${o.status}</td>
-      <td><button onclick="deleteOrder('${d.id}')">Delete</button></td>
+      <td><button onclick="deleteOrder('${d.id}')">X</button></td>
     </tr>`;
   });
-  total.innerText = totalDue;
+
+  totalDue.innerText=due;
+  totalPaid.innerText=paid;
+  totalParchi.innerText=parchi;
+  grandTotal.innerText=due+paid+parchi;
 }
 
-window.deleteOrder = async (id)=>{
+window.deleteOrder=async(id)=>{
   await deleteDoc(doc(db,"users",UID,"orders",currentCustomerID,"items",id));
   showOrders();
 };
 
-/* Other item toggle */
-itemType.addEventListener('change', ()=>{
-  if(itemType.value==='other'){
-    otherName.style.display='inline';
-    otherRate.style.display='inline';
-  } else {
-    otherName.style.display='none';
-    otherRate.style.display='none';
-  }
-});
-otherName.style.display='none';
-otherRate.style.display='none';
-
-/* Print bill */
-window.printBill = async ()=>{
-  let html = `<h2>Bill for ${currentCustomerName}</h2>
-              <table border="1" cellspacing="0" cellpadding="5">
-              <tr><th>Date</th><th>Item</th><th>Qty</th><th>Rate</th><th>Total</th><th>Status</th></tr>`;
-  const snap = await getDocs(collection(db,"users",UID,"orders",currentCustomerID,"items"));
-  let totalDue=0;
-  snap.forEach(d=>{
-    const o = d.data();
-    html += `<tr>
-      <td>${o.date}</td>
-      <td>${o.item}</td>
-      <td>${o.qty}</td>
-      <td>${o.rate}</td>
-      <td>${o.total}</td>
-      <td>${o.status}</td>
-    </tr>`;
-    if(o.status=="due") totalDue += o.total;
-  });
-  html += `</table><h3>Total Due: ₹${totalDue}</h3>`;
-  const win = window.open(""); win.document.write(html); win.print(); win.close();
+window.printBill=()=>{
+  let w=window.open("");
+  w.document.write(`<h2>Bill - ${currentCustomerName}</h2>`+
+    document.querySelector("table").outerHTML);
+  w.print();w.close();
 };
 
-/* ================= CSV DOWNLOAD ================= */
-async function downloadMonthlyCSV() {
-  if(!currentCustomerID){ alert("Open a customer first"); return; }
-  const todayMonth = new Date().getMonth() + 1;
-  const todayYear = new Date().getFullYear();
-  const itemsSnap = await getDocs(collection(db,"users",UID,"orders",currentCustomerID,"items"));
-  let csv = "Date,Item,Qty,Rate,Total,Status\n";
-  let count = 0;
-  itemsSnap.forEach(doc=>{
-    const o = doc.data();
-    const [d,m,y] = o.date.split("-").map(Number);
-    if(m === todayMonth && y === todayYear){
-      csv += `${o.date},${o.item},${o.qty},${o.rate},${o.total},${o.status}\n`;
-      count++;
-    }
+window.downloadMonthlyCSV=()=>{
+  let csv="Date,Item,Qty,Rate,Total,Status\n";
+  document.querySelectorAll("#orderList tr").forEach(r=>{
+    const t=[...r.children].map(td=>td.innerText);
+    csv+=`${t[0]},${t[1]},${t[2]},${t[3]},${t[4]},${t[5]}\n`;
   });
-  if(count === 0){ alert("No orders for this month"); return; }
-  const blob = new Blob([csv], {type:"text/csv"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `${currentCustomerName}_Monthly_Report.csv`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-}
-
-async function downloadAllCustomersCSV() {
-  const todayMonth = new Date().getMonth() + 1;
-  const todayYear = new Date().getFullYear();
-  const custSnap = await getDocs(collection(db,"users",UID,"customers"));
-  let csv = "Customer,Number,Date,Item,Qty,Rate,Total,Status\n";
-  let totalCount = 0;
-  for(const custDoc of custSnap.docs){
-    const c = custDoc.data();
-    const ordersSnap = await getDocs(collection(db,"users",UID,"orders",custDoc.id,"items"));
-    ordersSnap.forEach(d=>{
-      const o = d.data();
-      const [d1,m,y] = o.date.split("-").map(Number);
-      if(m === todayMonth && y === todayYear){
-        csv += `${c.name},${c.number},${o.date},${o.item},${o.qty},${o.rate},${o.total},${o.status}\n`;
-        totalCount++;
-      }
-    });
-  }
-  if(totalCount === 0){ alert("No orders for this month"); return; }
-  const blob = new Blob([csv], {type:"text/csv"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `All_Customers_Monthly.csv`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-}
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download=currentCustomerName+"_Report.csv";
+  a.click();
+};
 </script>
 
 <style>
-body { margin:0; font-family:'Segoe UI', sans-serif; background:linear-gradient(135deg,#f5f7fa,#c3cfe2); min-height:100vh; display:flex; justify-content:center; padding:20px;}
-.container { background:#fff; padding:20px; border-radius:15px; max-width:950px; width:100%; box-shadow:0 8px 25px rgba(0,0,0,0.15);}
-.headingBox {
-    background:#FFCC33; padding:20px; border:3px solid #FF9900; border-radius:10px; display:flex; align-items:center; justify-content:center; position:relative; flex-wrap:wrap;
+body{margin:0;font-family:Segoe UI;background: linear-gradient(135deg,#04ba62,#c81d56);
+  color:#0f172a;
+
+  color:#1f2937;}
+.container{max-width:1000px;margin:auto;background:#fff;padding:20px;border-radius:15px}
+
+.headingBox{
+background:linear-gradient(90deg,#eca20f,#212043,#2c5364);
+  color:#ffffff;border:3px solid #ff9900;
+display:flex;align-items:center;justify-content:center;gap:15px;
+border-radius:12px;padding:15px
 }
-.headingBox img { width:120px; height:120px; border-radius:50%; margin-right:20px;}
-.headingBox h2 { margin:0; font-size:36px; font-weight:bold; color:#333; text-align:center;}
-body>button { position:fixed; top:10px; right:10px; padding:8px 12px; font-size:14px; border-radius:6px; z-index:999;}
-h3{ text-align:center; color:#333; margin-bottom:20px;}
-input, select, button { padding:10px; margin:5px; border-radius:8px; border:1px solid #ccc; font-size:15px; }
-button { background:#007BFF; color:#fff; cursor:pointer; }
-button:hover{background:#0056b3;}
-.customerCard{background:#f0f4f8; padding:12px 15px; border-radius:10px; margin:10px 0; display:flex; justify-content:space-between; align-items:center; }
-.customerCard div button{margin-left:5px;}
-.hidden{display:none;}
-table{width:100%; border-collapse:collapse; margin-top:15px;}
-th,td{border:1px solid #ddd; padding:10px; text-align:center;}
-th{background:#007BFF; color:white;}
-#total{font-weight:bold;color:#007BFF;font-size:18px;}
-#customerSection{margin-top:30px; padding:15px; border:2px solid #007BFF; border-radius:10px; background:#f0f8ff;}
-#customerTitle{font-size:22px; font-weight:bold; text-align:center; margin-bottom:15px;}
-#otherName,#otherRate{display:none;}
+.headingBox img{width:150px;height:150px;border-radius:50%}
+.headingBox h2{margin:0;font-size:32px; color:#f9fafb;}
+
+input,select,button{
+padding:10px;border-radius:8px;border:1px solid #ccc;margin:5px
+}
+button{background:#007bff;color:#fff}
+button:hover{background:#0056b3}
+
+.customerCard{
+display:flex;justify-content:space-between;
+background:#f1f5f9;padding:12px;border-radius:10px;margin:8px 0
+}
+.rightBtns button{margin-left:5px}
+
+.hidden{display:none}
+
+/* CUSTOMER OPEN BOX */
+#customerSection{
+margin-top:25px;
+padding:20px;
+border-radius:16px;
+border:3px solid #007BFF;
+background:linear-gradient(135deg,#f0f8ff,#ffffff);
+box-shadow:0 10px 25px rgba(0,0,0,0.15);
+}
+
+#customerTitle{
+text-align:center;
+font-size:28px;
+font-weight:800;
+color:#0c0d0d;
+margin-bottom:20px;
+padding-bottom:10px;
+border-bottom:2px dashed #007BFF;
+}
+
+table{width:100%;border-collapse:collapse;margin-top:15px}
+th,td{border:1px solid #ccc;padding:8px;text-align:center}
+th{background:#007bff;color:#fff}
+
+.actionBox{
+margin:15px 0;padding:15px;border-radius:12px;
+display:flex;flex-wrap:wrap;gap:10px
+}
+.entryBox{background:#e8f4ff;border:2px solid #007bff}
+.billBox{background:#fff3e0;border:2px solid #ff9800}
+
+.totals{
+display:flex;flex-wrap:wrap;gap:10px;justify-content:center
+}
+.totals div{
+background:#f0f8ff;padding:10px 15px;border-radius:10px
+}
+
 @media(max-width:768px){
-    .headingBox { flex-direction:column; padding:15px; }
-    .headingBox img { width:80px; height:80px; margin:0 0 10px 0; }
-    .headingBox h2 { font-size:24px; }
-    body>button { padding:6px 10px; font-size:12px; }
-    input,select,button{width:20%; margin:5px 0;}
-    .customerCard{ flex-direction:column;align-items:flex-start; }
-    table,thead,tbody,th,td,tr { display:block; }
-    table thead tr { display:none; }
-    table tbody tr { margin-bottom:15px; border:1px solid #ccc; padding:10px; border-radius:10px; }
-    table td { text-align:right; padding-left:50%; position:relative; }
-    table td::before { position:absolute; left:10px; width:45%; white-space:nowrap; font-weight:bold; }
-    table td:nth-of-type(1)::before { content:"Date"; }
-    table td:nth-of-type(2)::before { content:"Item"; }
-    table td:nth-of-type(3)::before { content:"Qty"; }
-    table td:nth-of-type(4)::before { content:"Rate"; }
-    table td:nth-of-type(5)::before { content:"Total"; }
-    table td:nth-of-type(6)::before { content:"Status"; }
-    table td:nth-of-type(7)::before { content:"Action"; }
+.customerCard{flex-direction:column}
+input,select,button{width:100%}
 }
+/* CUSTOMER LIST ROW BIG & BOLD */
+.customerCard{
+  font-size: 18px;          /* size बड़ा */
+  font-weight: 600;         /* bold */
+  padding: 16px 18px;       /* थोड़ा spacious */
+}
+
+/* CUSTOMER NAME EXTRA STRONG */
+.customerCard span{
+  font-size: 19px;
+  font-weight: 700;         /* ज्यादा bold */
+  color:#0f172a;
+}
+
+/* MOBILE VIEW ME AUR BADA */
+@media(max-width:768px){
+  .customerCard{
+    font-size: 17px;
+  }
+  .customerCard span{
+    font-size: 18px;
+  }
+}
+/* ===== BIG & CLEAN INPUT BOX ===== */
+input, select{
+  height: 40px;           /* ऊँचाई बढ़ी */
+  font-size: 16px;        /* text बड़ा */
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #cbd5e1;
+  background:#ffffff;
+  font-weight: bold;
+}
+
+/* PLACEHOLDER CLEAR */
+input::placeholder{
+  font-size: 15px;
+  color:#64748b;
+}
+
+/* FOCUS EFFECT */
+input:focus, select:focus{
+  outline: none;
+  border-color:#2563eb;
+  box-shadow:0 0 0 3px rgba(37,99,235,0.2);
+}
+
+/* MOBILE ME AUR BADA */
+@media(max-width:768px){
+  input, select{
+    height: 52px;
+    font-size: 17px;
+  }
+}
+.logout{
+  position: fixed;
+  top: 10px;
+  right: 12px;
+  padding: 5px 14px;     /* छोटा */
+  font-size: 20px;
+  font-weight: 600;
+  border-radius: 18px;
+  background:#961818;
+  color:#fff;
+  border:none;
+  cursor:pointer;
+  z-index:9999;
+}
+
+.logout:hover{
+  background:#084298;
+}
+
+/* Mobile */
+@media(max-width:768px){
+  .logout{
+    top: 8px;
+    right: 8px;
+    padding: 4px 12px;
+    font-size: 12px;
+  }
+}
+
 </style>
 
 <body>
-<button onclick="logout()">Logout</button>
+<button  class="logout" onclick="logout()" >Logout</button>
+
 <div class="container" id="mainPage" style="display:none">
 
 <div class="headingBox">
-  <img src="https://cdn-icons-png.flaticon.com/512/1046/1046784.png" alt="Food">
-  <h2> Kalyani food and catering services
-</h2>
+<img src="kalyani.jpeg">
+<h2>Kalyani food and catering services</h2>
 </div>
 
-<div style="margin-bottom:15px;">
-<input id="searchInput" placeholder="Search Customer by name or serial" onkeyup="searchCustomer()">
-</div>
+<input id="searchInput" placeholder="🔍 Search Customer" onkeyup="searchCustomer()">
 
 <input id="custName" placeholder="Customer Name">
 <input id="custNumber" placeholder="Mobile Number">
 <button onclick="addCustomer()">Add Customer</button>
-<button onclick="downloadAllCustomersCSV()"> All exel </button>
 
 <div id="customerList"></div>
 
 <div id="customerSection" class="hidden">
+<button onclick="backToCustomers()">⬅ Back</button>
 <h3 id="customerTitle"></h3>
-<input id="orderDate" readonly>
 
+<div class="actionBox entryBox">
+<input id="orderDate" readonly>
 <select id="itemType">
 <option value="tea">Tea</option>
 <option value="snack">Snack</option>
@@ -334,21 +384,32 @@ th{background:#007BFF; color:white;}
 <option value="parchi">Parchi</option>
 </select>
 
-<button onclick="addOrder()">Add Order</button>
-<button onclick="printBill()">Print Bill</button>
-<button onclick="downloadMonthlyCSV()">exel</button>
+<button onclick="addOrder()">Add Entry</button>
+</div>
+
+<div class="actionBox billBox">
+<button onclick="printBill()">🧾 Print Bill</button>
+<button onclick="downloadMonthlyCSV()">📥 Download Excel</button>
+</div>
 
 <table>
 <thead>
-<tr><th>Date</th><th>Item</th><th>Qty</th><th>Rate</th><th>Total</th><th>Status</th><th>Action</th></tr>
+<tr>
+<th>Date</th><th>Item</th><th>Qty</th>
+<th>Rate</th><th>Total</th><th>Status</th><th>X</th>
+</tr>
 </thead>
 <tbody id="orderList"></tbody>
 </table>
 
-<div>Total Due ₹ <span id="total">0</span></div>
+<div class="totals">
+<div>Due ₹ <span id="totalDue">0</span></div>
+<div>Paid ₹ <span id="totalPaid">0</span></div>
+<div>Parchi ₹ <span id="totalParchi">0</span></div>
+<div>Grand ₹ <span id="grandTotal">0</span></div>
+</div>
+
 </div>
 </div>
 </body>
-
 </html>
-
