@@ -183,6 +183,28 @@ window.downloadMonthlyCSV=()=>{
   a.download=currentCustomerName+"_Report.csv";
   a.click();
 };
+  window.downloadAllCustomersExcel = async () => {
+  let csv = "Customer Name,Mobile,Date,Item,Qty,Rate,Total,Status\n";
+
+  const customers = await getDocs(collection(db,"users",UID,"customers"));
+
+  for (const c of customers.docs) {
+    const cust = c.data();
+    const orders = await getDocs(
+      collection(db,"users",UID,"orders",c.id,"items")
+    );
+
+    orders.forEach(o=>{
+      const d = o.data();
+      csv += `${cust.name},${cust.number},${d.date},${d.item},${d.qty},${d.rate},${d.total},${d.status}\n`;
+    });
+  }
+
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download = "All_Customers_Report.csv";
+  a.click();
+};
 </script>
 
 <style>
@@ -312,10 +334,10 @@ input:focus, select:focus{
   }
 }
 .logout{
-  position: fixed;
+  position: reletive;
   top: 10px;
   right: 12px;
-  padding: 5px 14px;     /* छोटा */
+  padding: 10px;     /* छोटा */
   font-size: 20px;
   font-weight: 600;
   border-radius: 18px;
@@ -339,7 +361,26 @@ input:focus, select:focus{
     font-size: 12px;
   }
 }
+.excelAllBtn{
+  background:#16a34a;
+  color:#fff;
+  font-size:16px;
+  font-weight:700;
+  padding:12px 18px;
+  border-radius:10px;
+  border:none;
+  margin:10px 0;
+  cursor:pointer;
+}
 
+/* MOBILE */
+@media(max-width:768px){
+  .excelAllBtn{
+    width:100%;
+    font-size:17px;
+    padding:14px;
+  }
+}
 </style>
 
 <body>
@@ -390,6 +431,9 @@ input:focus, select:focus{
 <div class="actionBox billBox">
 <button onclick="printBill()">🧾 Print Bill</button>
 <button onclick="downloadMonthlyCSV()">📥 Download Excel</button>
+  <button class="excelAllBtn" onclick="downloadAllCustomersExcel()">
+  📥 Download All Customers Excel
+</button>
 </div>
 
 <table>
@@ -413,3 +457,4 @@ input:focus, select:focus{
 </div>
 </body>
 </html>
+
