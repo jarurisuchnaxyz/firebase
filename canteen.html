@@ -35,7 +35,9 @@ window.logout=()=>signOut(auth).then(()=>location.href="login.html");
 window.addCustomer=async()=>{
   if(!custName.value||!custNumber.value) return alert("Fill details");
   await addDoc(collection(db,"users",UID,"customers"),{
-    name:custName.value,number:custNumber.value,created:Date.now()
+    name:custName.value,
+    number:custNumber.value,
+    created:Date.now()
   });
   custName.value="";custNumber.value="";
   loadCustomers();
@@ -70,7 +72,8 @@ window.editCustomer=(id,n,m)=>{
   const nn=prompt("Name",n);
   const nm=prompt("Mobile",m);
   if(!nn||!nm) return;
-  updateDoc(doc(db,"users",UID,"customers",id),{name:nn,number:nm}).then(loadCustomers);
+  updateDoc(doc(db,"users",UID,"customers",id),{name:nn,number:nm})
+    .then(loadCustomers);
 };
 
 window.deleteCustomer=async(id)=>{
@@ -99,9 +102,11 @@ function setToday(){
   const d=new Date();
   orderDate.value=
     String(d.getDate()).padStart(2,"0")+"-"+
-    String(d.getMonth()+1).padStart(2,"0")+"-"+d.getFullYear();
+    String(d.getMonth()+1).padStart(2,"0")+"-"+
+    d.getFullYear();
 }
 
+/* ✅ ORDER ADD – AUTO DATE + DATE-WISE SORT SUPPORT */
 window.addOrder=async()=>{
   let rate=0,item=itemType.value;
 
@@ -118,26 +123,37 @@ window.addOrder=async()=>{
     rate=parseInt(otherRate.value);
   }
 
-  await addDoc(collection(db,"users",UID,"orders",currentCustomerID,"items"),{
-    date:orderDate.value,
-    item,
-    qty:+qty.value,
-    rate,
-    total:qty.value*rate,
-    status:statusType.value
-  });
+  await addDoc(
+    collection(db,"users",UID,"orders",currentCustomerID,"items"),
+    {
+      date: orderDate.value,                         // display / print / excel
+      dateTS: new Date().setHours(0,0,0,0),           // ✅ sorting ke liye
+      item,
+      qty:+qty.value,
+      rate,
+      total:qty.value*rate,
+      status:statusType.value
+    }
+  );
 
   qty.value="";otherName.value="";otherRate.value="";
   showOrders();
 };
 
+/* ✅ DATE-WISE SAFE SHOW */
 async function showOrders(){
   orderList.innerHTML="";
   let due=0,paid=0,parchi=0;
 
-  const snap=await getDocs(collection(db,"users",UID,"orders",currentCustomerID,"items"));
-  snap.forEach(d=>{
-    const o=d.data();
+  const snap=await getDocs(
+    collection(db,"users",UID,"orders",currentCustomerID,"items")
+  );
+
+  const rows = snap.docs
+    .map(d => ({ id:d.id, ...d.data() }))
+    .sort((a,b)=>(a.dateTS||0)-(b.dateTS||0)); // ✅ date-wise order
+
+  rows.forEach(o=>{
     if(o.status==="due") due+=o.total;
     if(o.status==="paid") paid+=o.total;
     if(o.status==="parchi") parchi+=o.total;
@@ -150,7 +166,7 @@ async function showOrders(){
       <td>${o.rate}</td>
       <td>${o.total}</td>
       <td>${o.status}</td>
-      <td><button onclick="deleteOrder('${d.id}')">X</button></td>
+      <td><button onclick="deleteOrder('${o.id}')">X</button></td>
     </tr>`;
   });
 
@@ -165,6 +181,7 @@ window.deleteOrder=async(id)=>{
   showOrders();
 };
 
+/* ================= PRINT / EXCEL (UNCHANGED) ================= */
 window.printBill=()=>{
   let w=window.open("");
   w.document.write(`<h2>Bill - ${currentCustomerName}</h2>`+
@@ -183,6 +200,7 @@ window.downloadMonthlyCSV=()=>{
   a.download=currentCustomerName+"_Report.csv";
   a.click();
 };
+
 window.downloadAllCustomersExcel = async () => {
   let csv = "Customer Name,Mobile,Date,Item,Qty,Rate,Total,Status\n";
 
@@ -206,7 +224,6 @@ window.downloadAllCustomersExcel = async () => {
   a.click();
 };
 </script>
-
 <style>
 body{margin:0;font-family:Segoe UI;background: linear-gradient(135deg,#04ba62,#c81d56);
   color:#0f172a;
@@ -499,4 +516,5 @@ input:focus, select:focus{
 </div>
 </body>
 </html>
+
 
