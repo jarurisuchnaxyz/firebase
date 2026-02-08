@@ -280,13 +280,17 @@ body{margin:0;font-family:Segoe UI;background: linear-gradient(135deg,#04ba62,#c
 /* LOGO */
 /* IMAGE WRAPPER STYLE */
 .headingBox img{
-  width:90px;
-  height:90px;
+  width:150px;
+  height:150px;
+  border:3px solid gold;
   border-radius:50%;
   position:relative;
   z-index:1;
   background:#000;
-  padding:4px;              /* border thickness */
+  padding:4px;  
+  animation:rotateBorder 4s linear infinite;
+  z-index:-1;
+  /* border thickness */
 }
 
 /* ghoomta hua border */
@@ -302,9 +306,7 @@ body{margin:0;font-family:Segoe UI;background: linear-gradient(135deg,#04ba62,#c
     #ffeb3b,
     #ff004f
   );
-  animation:rotateBorder 4s linear infinite;
-  z-index:-1;
-}
+ 
 
 /* andar ka black ring */
 .headingBox img::after{
