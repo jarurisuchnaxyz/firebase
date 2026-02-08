@@ -1,3 +1,5 @@
+
+You said:
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,211 +9,203 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  getDocs,
-  deleteDoc,
-  doc,
-  updateDoc,
-  query,
-  orderBy
-} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getAuth,onAuthStateChanged,signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { getFirestore,collection,addDoc,getDocs,deleteDoc,doc,updateDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-/* ================= FIREBASE ================= */
-const firebaseConfig = {
-  apiKey: "AIzaSyA0MilQXBxRH3bK2XwBl8of1PIFpDx8K14",
-  authDomain: "managment-5ecda.firebaseapp.com",
-  projectId: "managment-5ecda"
+const firebaseConfig={
+  apiKey:"AIzaSyA0MilQXBxRH3bK2XwBl8of1PIFpDx8K14",
+  authDomain:"managment-5ecda.firebaseapp.com",
+  projectId:"managment-5ecda"
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
 
-let UID = "";
-let currentCustomerID = "";
-let currentCustomerName = "";
+let UID="",currentCustomerID="",currentCustomerName="";
 
-/* ================= AUTH ================= */
-onAuthStateChanged(auth, user => {
-  if (!user) {
-    location.href = "login.html";
-    return;
-  }
-  UID = user.uid;
-  mainPage.style.display = "block";
+onAuthStateChanged(auth,u=>{
+  if(!u) location.href="login.html";
+  UID=u.uid;
+  mainPage.style.display="block";
   loadCustomers();
 });
 
-window.logout = () => {
-  signOut(auth).then(() => location.href = "login.html");
-};
+window.logout=()=>signOut(auth).then(()=>location.href="login.html");
 
 /* ================= CUSTOMERS ================= */
-window.addCustomer = async () => {
-  if (!custName.value || !custNumber.value) {
-    alert("Fill details");
-    return;
-  }
-
-  await addDoc(collection(db, "users", UID, "customers"), {
-    name: custName.value,
-    number: custNumber.value,
-    created: Date.now()
+window.addCustomer=async()=>{
+  if(!custName.value||!custNumber.value) return alert("Fill details");
+  await addDoc(collection(db,"users",UID,"customers"),{
+    name:custName.value,number:custNumber.value,created:Date.now()
   });
-
-  custName.value = "";
-  custNumber.value = "";
+  custName.value="";custNumber.value="";
   loadCustomers();
 };
 
-async function loadCustomers() {
-  customerList.innerHTML = "";
-  const snap = await getDocs(collection(db, "users", UID, "customers"));
-  let i = 1;
-
-  snap.forEach(d => {
-    const c = d.data();
-    customerList.innerHTML += `
-      <div class="customerCard">
-        <span>${i++}. ${c.name} (${c.number})</span>
-        <div class="rightBtns">
-          <button onclick="openCustomer('${d.id}','${c.name}')">Open</button>
-          <button onclick="editCustomer('${d.id}','${c.name}','${c.number}')">Edit</button>
-          <button onclick="deleteCustomer('${d.id}')">Delete</button>
-        </div>
-      </div>`;
+async function loadCustomers(){
+  customerList.innerHTML="";
+  const snap=await getDocs(collection(db,"users",UID,"customers"));
+  let i=1;
+  snap.forEach(d=>{
+    const c=d.data();
+    customerList.innerHTML+=
+    <div class="customerCard">
+      <span>${i++}. ${c.name} (${c.number})</span>
+      <div class="rightBtns">
+        <button onclick="openCustomer('${d.id}','${c.name}')">Open</button>
+        <button onclick="editCustomer('${d.id}','${c.name}','${c.number}')">Edit</button>
+        <button onclick="deleteCustomer('${d.id}')">Delete</button>
+      </div>
+    </div>;
   });
 }
 
-window.searchCustomer = () => {
-  const v = searchInput.value.toLowerCase();
-  document.querySelectorAll(".customerCard").forEach(c => {
-    c.style.display = c.innerText.toLowerCase().includes(v) ? "flex" : "none";
+window.searchCustomer=()=>{
+  const v=searchInput.value.toLowerCase();
+  document.querySelectorAll(".customerCard").forEach(c=>{
+    c.style.display=c.innerText.toLowerCase().includes(v)?"flex":"none";
   });
 };
 
-window.editCustomer = (id, n, m) => {
-  const nn = prompt("Name", n);
-  const nm = prompt("Mobile", m);
-  if (!nn || !nm) return;
-
-  updateDoc(doc(db, "users", UID, "customers", id), {
-    name: nn,
-    number: nm
-  }).then(loadCustomers);
+window.editCustomer=(id,n,m)=>{
+  const nn=prompt("Name",n);
+  const nm=prompt("Mobile",m);
+  if(!nn||!nm) return;
+  updateDoc(doc(db,"users",UID,"customers",id),{name:nn,number:nm}).then(loadCustomers);
 };
 
-window.deleteCustomer = async id => {
-  if (!confirm("Delete customer?")) return;
-  await deleteDoc(doc(db, "users", UID, "customers", id));
+window.deleteCustomer=async(id)=>{
+  if(!confirm("Delete customer?")) return;
+  await deleteDoc(doc(db,"users",UID,"customers",id));
   loadCustomers();
 };
 
 /* ================= ORDERS ================= */
-window.openCustomer = (id, name) => {
-  currentCustomerID = id;
-  currentCustomerName = name;
-  customerList.style.display = "none";
+window.openCustomer=(id,name)=>{
+  currentCustomerID=id;
+  currentCustomerName=name;
+  customerList.style.display="none";
   customerSection.classList.remove("hidden");
-  customerTitle.innerText = name;
+  customerTitle.innerText=name;
   setToday();
   showOrders();
 };
 
-window.backToCustomers = () => {
+window.backToCustomers=()=>{
   customerSection.classList.add("hidden");
-  customerList.style.display = "block";
+  customerList.style.display="block";
 };
 
-function setToday() {
-  const d = new Date();
-  orderDate.value =
-    String(d.getDate()).padStart(2, "0") + "-" +
-    String(d.getMonth() + 1).padStart(2, "0") + "-" +
-    d.getFullYear();
+function setToday(){
+  const d=new Date();
+  orderDate.value=
+    String(d.getDate()).padStart(2,"0")+"-"+
+    String(d.getMonth()+1).padStart(2,"0")+"-"+d.getFullYear();
 }
 
-window.addOrder = async () => {
-  let rate = 0;
-  let item = itemType.value;
+window.addOrder=async()=>{
+  let rate=0,item=itemType.value;
 
-  if (item === "tea") rate = 5;
-  else if (item === "snack") rate = 15;
-  else if (item === "lunch") rate = 45;
-  else if (item === "dinner") rate = 45;
-  else {
-    if (!otherName.value || !otherRate.value) {
+  if(item==="tea") rate=5;
+  else if(item==="snack") rate=15;
+  else if(item==="lunch") rate=45;
+  else if(item==="dinner") rate=45;
+  else{
+    if(!otherName.value || !otherRate.value){
       alert("Other item name aur rate dalo");
       return;
     }
-    item = otherName.value;
-    rate = parseInt(otherRate.value);
+    item=otherName.value;
+    rate=parseInt(otherRate.value);
   }
 
-  await addDoc(
-    collection(db, "users", UID, "orders", currentCustomerID, "items"),
-    {
-      date: orderDate.value,   // display
-      dateTS: Date.now(),      // ✅ sorting ke liye
-      item,
-      qty: +qty.value,
-      rate,
-      total: qty.value * rate,
-      status: statusType.value
-    }
-  );
+  await addDoc(collection(db,"users",UID,"orders",currentCustomerID,"items"),{
+    date:orderDate.value,
+    item,
+    qty:+qty.value,
+    rate,
+    total:qty.value*rate,
+    status:statusType.value
+  });
 
-  qty.value = "";
-  otherName.value = "";
-  otherRate.value = "";
+  qty.value="";otherName.value="";otherRate.value="";
   showOrders();
 };
 
-async function showOrders() {
-  orderList.innerHTML = "";
-  let due = 0, paid = 0, parchi = 0;
+async function showOrders(){
+  orderList.innerHTML="";
+  let due=0,paid=0,parchi=0;
 
-  const q = query(
-    collection(db, "users", UID, "orders", currentCustomerID, "items"),
-    orderBy("dateTS", "asc")   // ✅ date-wise order
-  );
+  const snap=await getDocs(collection(db,"users",UID,"orders",currentCustomerID,"items"));
+  snap.forEach(d=>{
+    const o=d.data();
+    if(o.status==="due") due+=o.total;
+    if(o.status==="paid") paid+=o.total;
+    if(o.status==="parchi") parchi+=o.total;
 
-  const snap = await getDocs(q);
-
-  snap.forEach(d => {
-    const o = d.data();
-
-    if (o.status === "due") due += o.total;
-    if (o.status === "paid") paid += o.total;
-    if (o.status === "parchi") parchi += o.total;
-
-    orderList.innerHTML += `
-      <tr>
-        <td>${o.date}</td>
-        <td>${o.item}</td>
-        <td>${o.qty}</td>
-        <td>${o.rate}</td>
-        <td>${o.total}</td>
-        <td>${o.status}</td>
-        <td><button onclick="deleteOrder('${d.id}')">X</button></td>
-      </tr>`;
+    orderList.innerHTML+=
+    <tr>
+      <td>${o.date}</td>
+      <td>${o.item}</td>
+      <td>${o.qty}</td>
+      <td>${o.rate}</td>
+      <td>${o.total}</td>
+      <td>${o.status}</td>
+      <td><button onclick="deleteOrder('${d.id}')">X</button></td>
+    </tr>;
   });
 
-  totalDue.innerText = due;
-  totalPaid.innerText = paid;
-  totalParchi.innerText = parchi;
-  grandTotal.innerText = due + paid + parchi;
+  totalDue.innerText=due;
+  totalPaid.innerText=paid;
+  totalParchi.innerText=parchi;
+  grandTotal.innerText=due+paid+parchi;
 }
 
-window.deleteOrder = async id => {
-  await deleteDoc(
-    doc(db, "users", UID, "orders", currentCustomerID, "items", id)
-  );
+window.deleteOrder=async(id)=>{
+  await deleteDoc(doc(db,"users",UID,"orders",currentCustomerID,"items",id));
   showOrders();
+};
+
+window.printBill=()=>{
+  let w=window.open("");
+  w.document.write(<h2>Bill - ${currentCustomerName}</h2>+
+    document.querySelector("table").outerHTML);
+  w.print();w.close();
+};
+
+window.downloadMonthlyCSV=()=>{
+  let csv="Date,Item,Qty,Rate,Total,Status\n";
+  document.querySelectorAll("#orderList tr").forEach(r=>{
+    const t=[...r.children].map(td=>td.innerText);
+    csv+=${t[0]},${t[1]},${t[2]},${t[3]},${t[4]},${t[5]}\n;
+  });
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download=currentCustomerName+"_Report.csv";
+  a.click();
+};
+  window.downloadAllCustomersExcel = async () => {
+  let csv = "Customer Name,Mobile,Date,Item,Qty,Rate,Total,Status\n";
+
+  const customers = await getDocs(collection(db,"users",UID,"customers"));
+
+  for (const c of customers.docs) {
+    const cust = c.data();
+    const orders = await getDocs(
+      collection(db,"users",UID,"orders",c.id,"items")
+    );
+
+    orders.forEach(o=>{
+      const d = o.data();
+      csv += ${cust.name},${cust.number},${d.date},${d.item},${d.qty},${d.rate},${d.total},${d.status}\n;
+    });
+  }
+
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download = "All_Customers_Report.csv";
+  a.click();
 };
 </script>
 
@@ -504,6 +498,3 @@ input:focus, select:focus{
 </div>
 </body>
 </html>
-
-
-
