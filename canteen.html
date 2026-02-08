@@ -243,6 +243,39 @@ body{margin:0;font-family:Segoe UI;background: linear-gradient(135deg,#04ba62,#c
   padding:20px;
   box-shadow:0 12px 30px rgba(0,0,0,0.25);
 }
+ 
+
+/* ghoomta hua border */
+.headingBox::before{
+  content: "";
+  position: absolute;
+  inset: -3px;
+  background: linear-gradient(
+    0deg,
+    #ff004f,
+    #00fff7,
+    #ffeb3b,
+    #ff004f
+  );
+  border-radius: 25px;
+  animation: rotateBorder 4s linear infinite;
+  z-index: -1;
+}
+
+/* andar ka background */
+.headingBox::after{
+  content: "";
+  position: absolute;
+  inset: 3px;
+  background: #111;
+  border-radius: 17px;
+  z-index: -1;
+}
+
+@keyframes rotateBorder{
+  0%{ transform: rotate(0deg); }
+  100%{ transform: rotate(360deg); }
+}
 
 /* LOGO */
 .headingBox img{
@@ -516,6 +549,7 @@ input:focus, select:focus{
 </div>
 </body>
 </html>
+
 
 
 
