@@ -8,55 +8,97 @@
 <style>
 body{
   margin:0;
-  font-family:Arial, sans-serif;
-  background:linear-gradient(135deg,#667eea,#764ba2);
+  font-family:'Segoe UI', Arial;
+  background:linear-gradient(135deg,#ea667c,#764ba2);
   height:100vh;
   display:flex;
-  align-items:center;
   justify-content:center;
+  align-items:center;
 }
 
 .box{
-  background:#fff;
-  width:360px;
-  padding:25px;
-  border-radius:15px;
-  box-shadow:0 15px 40px rgba(0,0,0,0.3);
+  background:#b3e383;
+  width:380px;
+  padding:30px;
+  border-radius:18px;
+  box-shadow:0 20px 50px rgba(0,0,0,0.35);
+  animation:pop .7s ease;
 }
 
-h2{text-align:center;margin-bottom:15px}
+@keyframes pop{
+  from{transform:scale(.7);opacity:0}
+  to{transform:scale(1);opacity:1}
+}
+
+h2{
+  text-align:center;
+  margin-bottom:20px;
+  color:#1e293b;
+}
 
 input{
   width:100%;
-  padding:10px;
+  padding:12px;
   margin:8px 0;
-  border-radius:8px;
-  border:1px solid #ccc;
+  border-radius:10px;
+  border:1px solid #cbd5e1;
+  font-size:15px;
+}
+
+input:focus{
+  border-color:#6366f1;
+  outline:none;
+  box-shadow:0 0 0 3px rgba(99,102,241,.3);
+}
+
+.passBox{
+  position:relative;
+}
+
+.eye{
+  position:absolute;
+  right:12px;
+  top:50%;
+  transform:translateY(-50%);
+  cursor:pointer;
+  font-size:18px;
 }
 
 button{
   width:100%;
-  padding:10px;
-  margin-top:10px;
+  padding:12px;
+  margin-top:12px;
   border:none;
-  border-radius:8px;
+  border-radius:12px;
   font-weight:bold;
+  font-size:15px;
   cursor:pointer;
 }
 
-.registerBtn{background:#28a745;color:#fff}
-.loginBtn{background:#007bff;color:#fff}
+.registerBtn{
+  background:linear-gradient(135deg,#6f0789,#16a34a);
+  color:#fff;
+}
 
-.switch{
+.loginBtn{
+  background:linear-gradient(135deg,#3b82f6,#2563eb);
+  color:#fff;
+  display:none;
+}
+
+.switch, .forgot{
   text-align:center;
   margin-top:12px;
+  color:#0f1010;
+  font-weight: bold;
   cursor:pointer;
-  color:#007bff;
   font-size:14px;
 }
 
+.forgot{display:none}
+
 @media(max-width:480px){
-  .box{width:90%}
+  .box{width:92%}
 }
 </style>
 </head>
@@ -64,15 +106,25 @@ button{
 <body>
 
 <div class="box">
-  <h2 id="title">Register</h2>
+  <h2 id="title"></h2>
 
-  <input type="email" id="email" placeholder="Email" required>
-  <input type="password" id="password" placeholder="Password (min 6 char)" required>
+  <input type="text" id="userId" placeholder="Email or Mobile Number">
 
-  <button id="registerBtn" class="registerBtn" onclick="register()">Register</button>
-  <button id="loginBtn" class="loginBtn" onclick="login()" style="display:none;">Login</button>
+  <div class="passBox">
+    <input type="password" id="password" placeholder="Password (min 6 char)">
+    <span class="eye" onclick="togglePass()">👁️</span>
+  </div>
 
-  <div class="switch" onclick="toggleForm()" id="switchText">
+  <div class="passBox" id="confirmBox">
+    <input type="password" id="confirmPassword" placeholder="Confirm Password">
+  </div>
+
+  <button class="registerBtn" id="registerBtn" onclick="register()">Register</button>
+  <button class="loginBtn" id="loginBtn" onclick="login()">Login</button>
+
+  <div class="forgot" id="forgot" onclick="forgotPassword()">Forgot Password?</div>
+
+  <div class="switch" id="switchText" onclick="toggleForm()">
     Already registered? Login
   </div>
 </div>
@@ -80,8 +132,12 @@ button{
 <!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword }
-from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA0MilQXBxRH3bK2XwBl8of1PIFpDx8K14",
@@ -94,44 +150,77 @@ const auth = getAuth(app);
 
 let isRegister = true;
 
-window.toggleForm = function(){
-  isRegister = !isRegister;
-  document.getElementById("title").innerText = isRegister ? "Register" : "Login";
-  document.getElementById("registerBtn").style.display = isRegister ? "block" : "none";
-  document.getElementById("loginBtn").style.display = isRegister ? "none" : "block";
-  document.getElementById("switchText").innerText =
-    isRegister ? "Already registered? Login" : "New user? Register";
+function makeEmail(input){
+  return input.includes("@") ? input : input + "@mobile.com";
 }
 
-// REGISTER
+window.toggleForm = function(){
+  isRegister = !isRegister;
+  registerBtn.style.display = isRegister ? "block" : "none";
+  loginBtn.style.display = isRegister ? "none" : "block";
+  confirmBox.style.display = isRegister ? "block" : "none";
+  forgot.style.display = isRegister ? "none" : "block";
+  switchText.innerText = isRegister ? "Already registered? Login" : "New user? Register";
+}
+
 window.register = function(){
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value.trim();
+  const user = userId.value.trim();
+  const email = makeEmail(user);
+  const pass = password.value.trim();
+  const cpass = confirmPassword.value.trim();
 
-  if(password.length < 6){
-    alert("Password minimum 6 characters");
-    return;
-  }
+  if(!user) return alert("Email or mobile required");
+  if(pass.length < 6) return alert("Password minimum 6 characters");
+  if(pass !== cpass) return alert("Password not matched");
 
-  createUserWithEmailAndPassword(auth, email, password)
+  createUserWithEmailAndPassword(auth, email, pass)
     .then(()=>{
-      alert("Registration successful. Now login.");
+      alert("Registration successful");
       toggleForm();
     })
     .catch(err=>alert(err.message));
 }
 
-// LOGIN
 window.login = function(){
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value.trim();
+  const email = makeEmail(userId.value.trim());
+  const pass = password.value.trim();
 
-  signInWithEmailAndPassword(auth, email, password)
-    .then(()=>{
-      window.location.href = "canteen.html";
-    })
+  signInWithEmailAndPassword(auth, email, pass)
+    .then(()=>window.location.href="canteen.html")
     .catch(err=>alert(err.message));
 }
+
+window.forgotPassword = function(){
+  if(!userId.value) return alert("Enter email or mobile");
+  sendPasswordResetEmail(auth, makeEmail(userId.value.trim()))
+    .then(()=>alert("Password reset link sent"))
+    .catch(err=>alert(err.message));
+}
+</script>
+
+<script>
+function togglePass(){
+  const p = document.getElementById("password");
+  const c = document.getElementById("confirmPassword");
+  p.type = p.type === "password" ? "text" : "password";
+  if(c) c.type = c.type === "password" ? "text" : "password";
+}
+
+const text = "Welcome To Managment System"; // jo likhna hai
+const speed = 100; // typing speed (ms)
+let i = 0;
+
+function typeText() {
+  if (i < text.length) {
+    document.getElementById("title").innerHTML += text.charAt(i);
+    i++;
+    setTimeout(typeText, speed);
+  }
+}
+
+// page load hote hi ek baar chale
+window.onload = typeText;
+
 </script>
 
 </body>
